@@ -6,7 +6,7 @@ from infrastructure.init_db import Base
 
 
 class UserThreadModel(Base):
-    __tablename__ = "users"
+    __tablename__ = "USER_THREADS"
 
     phone_number: Mapped[str] = mapped_column(String(255), primary_key=True)
     thread_id: Mapped[str] = mapped_column(String(255))
