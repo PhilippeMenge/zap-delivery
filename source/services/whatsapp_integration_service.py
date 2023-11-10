@@ -38,6 +38,7 @@ def hook():
         new_message = messenger.is_message(data)
         if new_message:
             mobile = messenger.get_mobile(data)
+            print(mobile)
             name = messenger.get_name(data)
             message_type = messenger.get_message_type(data)
             logging.info(
@@ -103,7 +104,9 @@ def hook():
 
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=False)
+    app.run(port=8080, debug=False)
+
+messenger.send("oi", "5581996340106")
 
 
 
