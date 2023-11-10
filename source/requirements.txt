@@ -5,3 +5,5 @@ sqlalchemy
 alembic
 openai
 python-dotenv
+heyoo
+flask
