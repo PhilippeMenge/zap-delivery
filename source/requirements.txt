@@ -3,3 +3,5 @@ black
 isort
 sqlalchemy
 alembic
+openai
+python-dotenv

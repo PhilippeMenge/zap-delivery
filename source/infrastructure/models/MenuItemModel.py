@@ -1,9 +1,7 @@
-
+from domain.MenuItem import MenuItem
+from infrastructure.init_db import Base
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from domain.MenuItem import MenuItem
-
-from infrastructure.init_db import Base
 
 
 class MenuItemModel(Base):
@@ -14,7 +12,6 @@ class MenuItemModel(Base):
     price: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean)
-
 
     def to_entity(self):
         return MenuItem(
