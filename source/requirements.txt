@@ -6,4 +6,6 @@ alembic
 openai
 python-dotenv
 heyoo
-flask
+fastapi
+uvicorn
+stripe
