@@ -3,6 +3,7 @@ from infrastructure.init_db import get_db
 from infrastructure.repositories.menu_items_repository import MenuItemRepository
 from infrastructure.repositories.order_repository import OrderRepository
 from infrastructure.repositories.user_thread_repository import UserThreadRepository
+from services.google_maps_integration_service import GoogleMapsIntegrationService
 from services.openai_integration_service import OpenAiIntegrationService
 from services.order_service import OrderService
 from services.stripe_integration_service import StripeIntegrationService
@@ -14,6 +15,7 @@ USER_THREAD_REPOSITORY = UserThreadRepository(session=get_db())
 
 WHATSAPP_INTEGRATION_SERVICE = WhatsappIntegrationService()
 STRIPE_INTEGRATION_SERVICE = StripeIntegrationService()
+GOOGLE_MAPS_INTEGRATION_SERVICE = GoogleMapsIntegrationService()
 ORDER_SERVICE = OrderService(
     orderRepository=ORDER_REPOSITORY,
     stripeIntegrationService=STRIPE_INTEGRATION_SERVICE,
@@ -23,6 +25,7 @@ OPENAI_INTEGRATION_SERVICE = OpenAiIntegrationService(
     menuItemsRepository=MENU_ITEMS_REPOSITORY,
     userThreadRepository=USER_THREAD_REPOSITORY,
     orderService=ORDER_SERVICE,
+    googleMapsIntegrationService=GOOGLE_MAPS_INTEGRATION_SERVICE,
 )
 
 

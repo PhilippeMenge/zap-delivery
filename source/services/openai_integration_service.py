@@ -11,6 +11,7 @@ from domain.OrderItem import OrderItem
 from domain.UserThread import UserThread
 from infrastructure.repositories import MenuItemRepository
 from infrastructure.repositories.user_thread_repository import UserThreadRepository
+from services.google_maps_integration_service import GoogleMapsIntegrationService
 from services.order_service import OrderService
 
 
@@ -20,6 +21,7 @@ class OpenAiIntegrationService:
         menuItemsRepository: MenuItemRepository,
         userThreadRepository: UserThreadRepository,
         orderService: OrderService,
+        googleMapsIntegrationService: GoogleMapsIntegrationService,
     ):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.assistant = self.client.beta.assistants.retrieve(OPENAI_ASSISTANT_ID)
@@ -27,6 +29,7 @@ class OpenAiIntegrationService:
         self._menuItemsRepository = menuItemsRepository
         self._userThreadRepository = userThreadRepository
         self._orderService = orderService
+        self._googleMapsIntegrationService = googleMapsIntegrationService
 
         self.run_requests_lock = Lock()
         self.run_requests: dict[str, datetime] = {}
@@ -104,6 +107,20 @@ class OpenAiIntegrationService:
             "order_info": asdict(order, dict_factory=self._asdict_factory),
         }
 
+    def _get_address_data_from_text(self, text: str, user_thread: UserThread):
+        """### Get address data from text
+
+        Uses Google Maps API to get the address data from a text.
+
+        Args:
+            text (str): The text.
+            user_thread (UserThread): The user thread.
+
+        Returns:
+            dict: The address data.
+        """
+        return self._googleMapsIntegrationService.get_address_data_from_text(text)
+
     def _get_all_menu_items(self, user_thread: UserThread):
         """### Get all menu items
 
@@ -156,6 +173,7 @@ class OpenAiIntegrationService:
         "create_order": _create_order,
         "get_order_details": _get_order_details,
         "get_establishment_contact_info": _get_establishment_contact_info,
+        "get_address_data_from_text": _get_address_data_from_text,
     }
 
     def _execute_actions(self, run) -> list[dict]:
