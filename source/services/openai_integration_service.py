@@ -10,26 +10,23 @@ from domain import Order, OrderStatus
 from domain.OrderItem import OrderItem
 from domain.UserThread import UserThread
 from infrastructure.repositories import MenuItemRepository
-from infrastructure.repositories.order_repository import OrderRepository
-from infrastructure.repositories.user_thread_repository import \
-    UserThreadRepository
-from services.stripe_integration_service import StripeIntegrationService
+from infrastructure.repositories.user_thread_repository import UserThreadRepository
+from services.order_service import OrderService
 
 
 class OpenAiIntegrationService:
     def __init__(
         self,
         menuItemsRepository: MenuItemRepository,
-        orderRepository: OrderRepository,
-        stripeIntegrationService: StripeIntegrationService,
         userThreadRepository: UserThreadRepository,
+        orderService: OrderService,
     ):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.assistant = self.client.beta.assistants.retrieve(OPENAI_ASSISTANT_ID)
+
         self._menuItemsRepository = menuItemsRepository
-        self._orderRepository = orderRepository
-        self._stripeIntegrationService = stripeIntegrationService
         self._userThreadRepository = userThreadRepository
+        self._orderService = orderService
 
         self.run_requests_lock = Lock()
         self.run_requests: dict[str, datetime] = {}
@@ -100,16 +97,8 @@ class OpenAiIntegrationService:
             user_thread=user_thread,
         )
 
-        (
-            checkout_session_id,
-            checkout_session_url,
-        ) = self._stripeIntegrationService.create_checkout_session(order)
+        checkout_session_url = self._orderService.create_order(order)
 
-        if checkout_session_url is None or checkout_session_id is None:
-            return {"error": "Erro ao criar sessão de pagamento."}
-
-        order.checkout_session_id = checkout_session_id
-        self._orderRepository.add_order(order)
         return {
             "payment_url": checkout_session_url,
             "order_info": asdict(order, dict_factory=self._asdict_factory),
@@ -117,10 +106,10 @@ class OpenAiIntegrationService:
 
     def _get_all_menu_items(self, user_thread: UserThread):
         """### Get all menu items
-        
+
         Args:
             user_thread (UserThread): The user thread.
-        
+
         Returns:
             dict: The menu items.
         """
@@ -134,31 +123,47 @@ class OpenAiIntegrationService:
 
     def _get_order_details(self, order_id: str, user_thread: UserThread):
         """### Get order details
-        
+
         Args:
             order_id (str): The ID of the order.
             user_thread (UserThread): The user thread.
-            
+
         Returns:
             dict: The order details.
         """
-        order = self._orderRepository.get_order(order_id)
+        order = self._orderService.get_order(order_id)
         if order is None:
             return {"error": "Pedido não encontrado."}
         return {"order_info": asdict(order, dict_factory=self._asdict_factory)}
+
+    def _get_establishment_contact_info(self, user_thread: UserThread):
+        """### Get establishment contact info
+
+        Args:
+            user_thread (UserThread): The user thread.
+
+        Returns:
+            dict: The establishment contact info.
+        """
+        return {
+            "establishment_contact_info": {
+                "phone_number": "+5511999999999",
+            }
+        }
 
     FUNCTIONS = {
         "get_all_menu_items": _get_all_menu_items,
         "create_order": _create_order,
         "get_order_details": _get_order_details,
+        "get_establishment_contact_info": _get_establishment_contact_info,
     }
 
     def _execute_actions(self, run) -> list[dict]:
         """### Execute all actions in a run.
-        
+
         Args:
             run (Run): The OpenAI run.
-        
+
         Returns:
             list[dict]: The outputs of the actions.
         """
@@ -200,10 +205,10 @@ class OpenAiIntegrationService:
 
     def request_run_assistant_on_thread(self, thread_id: str):
         """### Request a run on a thread.
-        
+
         Adds the thread to the run requests list. The run will be executed in the next 10 seconds, unless another request is made.
         This is done to allow users to send multiple messages before the assistant runs.
-        
+
         Args:
             thread_id (str): The ID of the thread.
         """
@@ -255,7 +260,7 @@ class OpenAiIntegrationService:
                     self.client.beta.threads.runs.submit_tool_outputs(
                         thread_id=thread_id,
                         run_id=run.id,
-                        tool_outputs=tool_outputs,
+                        tool_outputs=tool_outputs,  # type: ignore
                     )
 
                     continue
@@ -276,15 +281,15 @@ class OpenAiIntegrationService:
 
             message_id = run_step.step_details.message_creation.message_id
 
-            message = (
-                self.client.beta.threads.messages.retrieve(
-                    thread_id=thread_id,
-                    message_id=message_id,
-                )
-                .content[0]
-                .text.value
-            )
+            contents = self.client.beta.threads.messages.retrieve(
+                thread_id=thread_id,
+                message_id=message_id,
+            ).content
 
-            messages.append(message)
+            for content in contents:
+                if content.type != "text":
+                    continue
+
+                messages.append(content.text.value)
 
         return "\n".join(messages)

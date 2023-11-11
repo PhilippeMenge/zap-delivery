@@ -5,11 +5,8 @@ from domain import UserThread
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import Response
-from routers.common import (
-    OPENAI_INTEGRATION_SERVICE,
-    USER_THREAD_REPOSITORY,
-    WHATSAPP_INTEGRATION_SERVICE,
-)
+from routers.common import (OPENAI_INTEGRATION_SERVICE, USER_THREAD_REPOSITORY,
+                            WHATSAPP_INTEGRATION_SERVICE)
 
 router = APIRouter()
 
@@ -20,9 +17,11 @@ def verify_token(request: Request):
     if request.query_params.get("hub.verify_token") == WHATSAPP_VERIFY_TOKEN:
         logging.info("Verified webhook")
         challenge = request.query_params.get("hub.challenge")
-        return Response(content=challenge, media_type="text/plain")
+        return Response(content=challenge, media_type="text/plain", status_code=200)
     logging.error("Webhook Verification failed")
-    return "Invalid verification token"
+    return Response(
+        content="Verification failed", media_type="text/plain", status_code=403
+    )
 
 
 @router.post("/")
@@ -32,7 +31,7 @@ async def handle_webhook(request: Request):
     message_data = WHATSAPP_INTEGRATION_SERVICE.get_message_text(data)
 
     if message_data is None:
-        return "Ok", 200
+        return Response(status_code=200)
 
     message, mobile = message_data
 
@@ -48,7 +47,7 @@ async def handle_webhook(request: Request):
 
     OPENAI_INTEGRATION_SERVICE.send_user_message(thread_id, message)
     OPENAI_INTEGRATION_SERVICE.request_run_assistant_on_thread(thread_id)
-    return "Ok", 200
+    return Response(status_code=200)
 
 
 @router.get("/execute_due_requests")
@@ -65,4 +64,4 @@ async def execute_due_requests():
 
         WHATSAPP_INTEGRATION_SERVICE.send_message(message, phone_number)
 
-    return "Ok", 200
+    return Response(status_code=200)
