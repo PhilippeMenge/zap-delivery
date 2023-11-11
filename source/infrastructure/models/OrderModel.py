@@ -27,6 +27,7 @@ class OrderItemModel(Base):
             menu_item=self.menu_item.to_entity(),
             amount=self.amount,
             observation=self.observation,
+            order_id=self.order_id,
         )
 
     @staticmethod
@@ -35,6 +36,7 @@ class OrderItemModel(Base):
             id_item=order_item.menu_item.id,
             amount=order_item.amount,
             observation=order_item.observation,
+            order_id=order_item.order_id,
         )
 
 
@@ -44,6 +46,11 @@ class OrderModel(Base):
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     address: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(255))
+    checkout_session_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    user_phone_number: Mapped[str] = mapped_column(
+        String(255), ForeignKey("USER_THREADS.phone_number")
+    )
+    user_thread = relationship("UserThreadModel", back_populates="orders")
     order_items = relationship("OrderItemModel", back_populates="order")
 
     def to_entity(self):
@@ -51,15 +58,19 @@ class OrderModel(Base):
             id=self.id,
             address=self.address,
             status=OrderStatus(self.status),
+            checkout_session_id=self.checkout_session_id,
+            user_thread=self.user_thread.to_entity(),
             itens=[order_item.to_entity() for order_item in self.order_items],
         )
-        
+
     @staticmethod
     def from_entity(order: Order):
         return OrderModel(
             id=str(order.id),
             address=order.address,
             status=order.status.value,
+            checkout_session_id=order.checkout_session_id,
+            user_phone_number=order.user_thread.phone_number,
             order_items=[
                 OrderItemModel.from_entity(order_item) for order_item in order.itens
             ],

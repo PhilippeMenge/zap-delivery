@@ -5,3 +5,7 @@ sqlalchemy
 alembic
 openai
 python-dotenv
+heyoo
+fastapi
+uvicorn
+stripe
