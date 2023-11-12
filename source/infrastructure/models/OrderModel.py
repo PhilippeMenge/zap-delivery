@@ -3,6 +3,7 @@ import uuid
 from domain.Order import Order, OrderStatus
 from domain.OrderItem import OrderItem
 from infrastructure.init_db import Base
+from infrastructure.models.AddressModel import AddressModel
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,19 +45,20 @@ class OrderModel(Base):
     __tablename__ = "ORDERS"
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    address: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(255))
     checkout_session_id: Mapped[str] = mapped_column(String(255), nullable=True)
     user_phone_number: Mapped[str] = mapped_column(
         String(255), ForeignKey("USER_THREADS.phone_number")
     )
+    address_id: Mapped[str] = mapped_column(String(255), ForeignKey("ADDRESSES.id"))
+    address = relationship("AddressModel", back_populates="orders")
     user_thread = relationship("UserThreadModel", back_populates="orders")
     order_items = relationship("OrderItemModel", back_populates="order")
 
     def to_entity(self):
         return Order(
             id=self.id,
-            address=self.address,
+            address=self.address.to_entity(),
             status=OrderStatus(self.status),
             checkout_session_id=self.checkout_session_id,
             user_thread=self.user_thread.to_entity(),
@@ -67,7 +69,7 @@ class OrderModel(Base):
     def from_entity(order: Order):
         return OrderModel(
             id=str(order.id),
-            address=order.address,
+            address=AddressModel.from_entity(order.address),
             status=order.status.value,
             checkout_session_id=order.checkout_session_id,
             user_phone_number=order.user_thread.phone_number,

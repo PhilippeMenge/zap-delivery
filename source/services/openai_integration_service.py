@@ -7,9 +7,11 @@ from threading import Lock
 import openai
 from config import OPENAI_API_KEY, OPENAI_ASSISTANT_ID
 from domain import Order, OrderStatus
+from domain.Address import Address
 from domain.OrderItem import OrderItem
 from domain.UserThread import UserThread
 from infrastructure.repositories import MenuItemRepository
+from infrastructure.repositories.address_repository import AddressRepository
 from infrastructure.repositories.user_thread_repository import UserThreadRepository
 from services.google_maps_integration_service import GoogleMapsIntegrationService
 from services.order_service import OrderService
@@ -22,6 +24,7 @@ class OpenAiIntegrationService:
         userThreadRepository: UserThreadRepository,
         orderService: OrderService,
         googleMapsIntegrationService: GoogleMapsIntegrationService,
+        addressRepository: AddressRepository,
     ):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.assistant = self.client.beta.assistants.retrieve(OPENAI_ASSISTANT_ID)
@@ -30,6 +33,7 @@ class OpenAiIntegrationService:
         self._userThreadRepository = userThreadRepository
         self._orderService = orderService
         self._googleMapsIntegrationService = googleMapsIntegrationService
+        self._addressRepository = addressRepository
 
         self.run_requests_lock = Lock()
         self.run_requests: dict[str, datetime] = {}
@@ -71,12 +75,12 @@ class OpenAiIntegrationService:
         return dict((k, _convert(v)) for k, v in data)
 
     def _create_order(
-        self, address: str, items: list[dict], user_thread: UserThread
+        self, address_id: str, items: list[dict], user_thread: UserThread
     ) -> dict:
         """### Create an order
 
         Args:
-            address (str): The address of the order.
+            address_id (str): The ID of the address.
             items (list[dict]): The items of the order.
             user_thread (UserThread): The user thread.
 
@@ -92,6 +96,11 @@ class OpenAiIntegrationService:
             order_items.append(
                 OrderItem(menu_item=menu_item, amount=amount, observation=observation)
             )
+
+        address = self._addressRepository.get_address(address_id)
+
+        if address is None:
+            return {"error": "Endereço não encontrado."}
 
         order = Order(
             address=address,
@@ -168,12 +177,58 @@ class OpenAiIntegrationService:
             }
         }
 
+    def _create_address(
+        self,
+        street: str,
+        number: str,
+        complement: str,
+        neighborhood: str,
+        city: str,
+        state: str,
+        country: str,
+        zipcode: str,
+        user_thread: UserThread,
+    ) -> dict:
+        """### Create an address
+
+        Args:
+            street (str): The street.
+            number (str): The number.
+            complement (str): The complement.
+            neighborhood (str): The neighborhood.
+            city (str): The city.
+            state (str): The state.
+            country (str): The country.
+            zipcode (str): The zipcode.
+            user_thread (UserThread): The user thread.
+
+        Returns:
+            dict: The address data.
+        """
+        address = Address(
+            street=street,
+            number=number,
+            complement=complement,
+            neighborhood=neighborhood,
+            city=city,
+            state=state,
+            country=country,
+            zipcode=zipcode,
+        )
+
+        self._addressRepository.add_address(address)
+
+        return {
+            "address_info": asdict(address, dict_factory=self._asdict_factory),
+        }
+
     FUNCTIONS = {
         "get_all_menu_items": _get_all_menu_items,
         "create_order": _create_order,
         "get_order_details": _get_order_details,
         "get_establishment_contact_info": _get_establishment_contact_info,
         "get_address_data_from_text": _get_address_data_from_text,
+        "create_address": _create_address,
     }
 
     def _execute_actions(self, run) -> list[dict]:

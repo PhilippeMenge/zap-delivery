@@ -1,5 +1,6 @@
 from domain import MenuItem
 from infrastructure.init_db import get_db
+from infrastructure.repositories.address_repository import AddressRepository
 from infrastructure.repositories.menu_items_repository import MenuItemRepository
 from infrastructure.repositories.order_repository import OrderRepository
 from infrastructure.repositories.user_thread_repository import UserThreadRepository
@@ -12,6 +13,7 @@ from services.whatsapp_integration_service import WhatsappIntegrationService
 MENU_ITEMS_REPOSITORY = MenuItemRepository(session=get_db())
 ORDER_REPOSITORY = OrderRepository(session=get_db())
 USER_THREAD_REPOSITORY = UserThreadRepository(session=get_db())
+ADDRESS_REPOSITORY = AddressRepository(session=get_db())
 
 WHATSAPP_INTEGRATION_SERVICE = WhatsappIntegrationService()
 STRIPE_INTEGRATION_SERVICE = StripeIntegrationService()
@@ -26,6 +28,7 @@ OPENAI_INTEGRATION_SERVICE = OpenAiIntegrationService(
     userThreadRepository=USER_THREAD_REPOSITORY,
     orderService=ORDER_SERVICE,
     googleMapsIntegrationService=GOOGLE_MAPS_INTEGRATION_SERVICE,
+    addressRepository=ADDRESS_REPOSITORY,
 )
 
 
