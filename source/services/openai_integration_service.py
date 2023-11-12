@@ -119,7 +119,7 @@ class OpenAiIntegrationService:
         Returns:
             dict: The address data.
         """
-        return self._googleMapsIntegrationService.get_address_data_from_text(text)
+        return self._googleMapsIntegrationService.get_address_from_text(text)
 
     def _get_all_menu_items(self, user_thread: UserThread):
         """### Get all menu items
