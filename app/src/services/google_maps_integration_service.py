@@ -1,5 +1,6 @@
 from googlemaps import Client
 from src.config import GOOGLE_MAPS_API_KEY
+from src.domain.Address import Address
 
 
 class GoogleMapsIntegrationService:
@@ -31,3 +32,22 @@ class GoogleMapsIntegrationService:
             details.append(detail_processed)
 
         return details
+
+    def get_time_between_addresses(
+        self, origin: Address, destination: Address
+    ) -> int | None:
+        """### Gets the distance between two addresses.
+
+        Args:
+            origin (Address): The origin address.
+            destination (Address): The destination address.
+
+        Returns:
+            int | None: The time in seconds between the two addresses. None if not found.
+        """
+        result = self.client.directions(str(origin), str(destination))
+
+        if len(result) == 0:
+            return None
+
+        return result[0]["legs"][0]["duration"]["value"]

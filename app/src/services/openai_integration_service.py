@@ -79,6 +79,55 @@ class OpenAiIntegrationService:
 
         return dict((k, _convert(v)) for k, v in data)
 
+    def _get_eta(self, user_address_id: str, user_thread: UserThread) -> dict:
+        """### Calculates the ETA for a given address.
+
+        For now, values for the prep time and restaurant location are hardcoded.
+        In the future, the restaurant data will be retrieved from the UserThread.
+
+        Args:
+            user_address_id (str): The ID of the user's address.
+            user_thread (UserThread): The user thread.
+
+        Returns:
+            dict: The ETA.
+        """
+        establishment_address = Address(
+            street="Av Boa Viagem",
+            number="2080",
+            complement="Sala 1001",
+            neighborhood="Boa Viagem",
+            city="Recife",
+            state="PE",
+            country="Brasil",
+            zipcode="51111-000",
+        )
+        establhisment_production_time_minutes = 30
+        establishment_error_margin_minutes = 10
+        user_address = self._addressRepository.get_address(user_address_id)
+
+        if user_address is None:
+            return {"error": "Endereço não encontrado do usuário nao encontrado."}
+
+        seconds_between_addresses = (
+            self._googleMapsIntegrationService.get_time_between_addresses(
+                origin=establishment_address, destination=user_address
+            )
+        )
+
+        if seconds_between_addresses is None:
+            return {
+                "error": "Tempo entre endereços não encontrado. Rotas não encontradas."
+            }
+
+        seconds_between_addresses += establhisment_production_time_minutes * 60
+        seconds_between_addresses += establishment_error_margin_minutes * 60
+
+        return {
+            "eta_seconds": seconds_between_addresses,
+            "eta_minutes": seconds_between_addresses // 60,
+        }
+
     def _create_order(
         self, address_id: str, items: list[dict], user_thread: UserThread
     ) -> dict:
@@ -237,6 +286,7 @@ class OpenAiIntegrationService:
         "get_establishment_contact_info": _get_establishment_contact_info,
         "get_address_data_from_text": _get_address_data_from_text,
         "create_address": _create_address,
+        "get_eta": _get_eta,
     }
 
     def _execute_actions(self, run) -> list[dict]:
