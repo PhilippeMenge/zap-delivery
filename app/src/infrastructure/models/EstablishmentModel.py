@@ -1,5 +1,6 @@
 from src.domain.Establishment import Establishment
 from src.infrastructure.models.AddressModel import AddressModel
+from src.infrastructure.models.MenuItemModel import MenuItemModel
 from src.infrastructure.init_db import Base
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,6 +16,8 @@ class EstablishmentModel(Base):
     prompt: Mapped[str] = mapped_column(String(255))
     address_id: Mapped[str] = mapped_column(String(255), ForeignKey("ADDRESSES.id"))
     address = relationship("AddressModel", back_populates="establishment")
+    menu_item = relationship("MenuItemModel", back_populates="establishment")
+    user_thread = relationship("UserThreadModel", back_populates="establishment")
     
 
     def to_entity(self):
