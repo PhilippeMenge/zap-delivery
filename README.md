@@ -2,15 +2,9 @@
 
 ## Running the project
 
-- First, create a virtual environment
+- Start the Docker
   ```bash
-    python3 -m venv venv
+    docker-compose -f dockercompose-local.yml
     ```
-    ````bash
-    source venv/bin/activate
-    ````
-- Install the dependencies
-  ```bash
-    pip install -r source/requirements.txt
-    ```
+  
     
