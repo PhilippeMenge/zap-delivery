@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from src.domain.Establishment import Establishment
 
 
 @dataclass
@@ -7,3 +8,4 @@ class UserThread:
 
     phone_number: str
     thread_id: str
+    establishment: Establishment

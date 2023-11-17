@@ -17,6 +17,7 @@ class AddressModel(Base):
     country: Mapped[str] = mapped_column(String(255))
     zipcode: Mapped[str] = mapped_column(String(255))
     orders = relationship("OrderModel", back_populates="address")
+    establishment = relationship("EstablishmentModel", back_populates="address")
 
     def to_entity(self):
         return Address(
