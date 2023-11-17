@@ -55,9 +55,9 @@ async def handle_webhook(request: Request):
 
 @router.get("/execute_due_requests")
 async def execute_due_requests():
-    messages = OPENAI_INTEGRATION_SERVICE.execute_due_requests()
+    messages_per_thread = OPENAI_INTEGRATION_SERVICE.execute_due_requests()
 
-    for thread_id, message in messages.items():
+    for thread_id, messages in messages_per_thread.items():
         phone_number = USER_THREAD_REPOSITORY.get_phone_number_from_thread_id(thread_id)
         if phone_number is None:
             logging.error(
@@ -65,6 +65,7 @@ async def execute_due_requests():
             )
             continue
 
-        WHATSAPP_INTEGRATION_SERVICE.send_message(message, phone_number)
+        for message in messages:
+            WHATSAPP_INTEGRATION_SERVICE.send_message(message, phone_number)
 
     return Response(status_code=200)

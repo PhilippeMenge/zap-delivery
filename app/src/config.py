@@ -1,9 +1,5 @@
 import os
 
-import dotenv
-
-dotenv.load_dotenv()
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
@@ -13,3 +9,4 @@ STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 STRIPE_ENDPOINT_SECRET = os.getenv("STRIPE_ENDPOINT_SECRET")
 DB_URL = os.getenv("DB_URL")
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "WARNING")

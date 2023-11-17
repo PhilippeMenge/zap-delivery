@@ -1,7 +1,6 @@
 import json
-from dataclasses import asdict
+import logging
 from datetime import datetime
-from enum import Enum
 from threading import Lock
 
 import openai
@@ -15,6 +14,17 @@ from src.infrastructure.repositories.menu_items_repository import MenuItemReposi
 from src.infrastructure.repositories.user_thread_repository import UserThreadRepository
 from src.services.google_maps_integration_service import GoogleMapsIntegrationService
 from src.services.order_service import OrderService
+from src.utils.custom_json_encoder import CustomJsonEncoder
+
+
+class FunctionProcessingError(Exception):
+    """### Exception raised when an error occurs while processing a function.
+
+    Note that the message will be sent to OpenAI, so it should be in portuguese.
+    """
+
+    def __init__(self, message: str):
+        self.message = message
 
 
 class OpenAiIntegrationService:
@@ -49,6 +59,7 @@ class OpenAiIntegrationService:
             str: The ID of the thread.
         """
         thread = self.client.beta.threads.create()
+        logging.info(f"Created thread {thread.id}")
         return thread.id
 
     def send_user_message(self, thread_id: str, message: str):
@@ -64,20 +75,7 @@ class OpenAiIntegrationService:
             content=message,
             role="user",
         )
-
-    def _asdict_factory(self, data):
-        """### Convert Enum to string when converting to dict
-
-        Honestly this looks very very bad. I'm sorry.
-        We should probably figure out a better way to do this.
-        """
-
-        def _convert(o):
-            if isinstance(o, Enum):
-                return o.value
-            return o
-
-        return dict((k, _convert(v)) for k, v in data)
+        logging.info(f"Added message to thread {thread_id}: {message}")
 
     def _get_eta(self, user_address_id: str, user_thread: UserThread) -> dict:
         """### Calculates the ETA for a given address.
@@ -107,7 +105,9 @@ class OpenAiIntegrationService:
         user_address = self._addressRepository.get_address(user_address_id)
 
         if user_address is None:
-            return {"error": "Endereço não encontrado do usuário nao encontrado."}
+            raise FunctionProcessingError(
+                "Endereço não encontrado do usuário não encontrado."
+            )
 
         seconds_between_addresses = (
             self._googleMapsIntegrationService.get_time_between_addresses(
@@ -116,16 +116,22 @@ class OpenAiIntegrationService:
         )
 
         if seconds_between_addresses is None:
-            return {
-                "error": "Tempo entre endereços não encontrado. Rotas não encontradas."
-            }
+            raise FunctionProcessingError(
+                "Não foi possível calcular o tempo entre os endereços. A rota pode não existir."
+            )
 
         seconds_between_addresses += establhisment_production_time_minutes * 60
         seconds_between_addresses += establishment_error_margin_minutes * 60
 
+        minutes_between_addresses = seconds_between_addresses // 60
+
+        logging.info(
+            f"ETA for user {user_thread.phone_number} is {minutes_between_addresses} minutes."
+        )
+
         return {
             "eta_seconds": seconds_between_addresses,
-            "eta_minutes": seconds_between_addresses // 60,
+            "eta_minutes": minutes_between_addresses,
         }
 
     def _create_order(
@@ -148,7 +154,7 @@ class OpenAiIntegrationService:
             menu_item = self._menuItemsRepository.get_menu_item_by_id(item["item_id"])
 
             if menu_item is None:
-                return {"error": "Item não encontrado."}
+                raise FunctionProcessingError(f"Item {item['item_id']} não encontrado.")
 
             order_items.append(
                 OrderItem(menu_item=menu_item, amount=amount, observation=observation)
@@ -157,7 +163,7 @@ class OpenAiIntegrationService:
         address = self._addressRepository.get_address(address_id)
 
         if address is None:
-            return {"error": "Endereço não encontrado."}
+            raise FunctionProcessingError("Endereço não encontrado.")
 
         order = Order(
             address=address,
@@ -168,9 +174,13 @@ class OpenAiIntegrationService:
 
         checkout_session_url = self._orderService.create_order(order)
 
+        logging.info(
+            f"Created order {order.id} for user {user_thread.phone_number}, checkout session URL: {checkout_session_url}"
+        )
+
         return {
             "payment_url": checkout_session_url,
-            "order_info": asdict(order, dict_factory=self._asdict_factory),
+            "order_info": order,
         }
 
     def _get_address_data_from_text(self, text: str, user_thread: UserThread):
@@ -185,7 +195,15 @@ class OpenAiIntegrationService:
         Returns:
             dict: The address data.
         """
-        return self._googleMapsIntegrationService.get_address_from_text(text)
+        address_data = self._googleMapsIntegrationService.get_address_from_text(text)
+
+        if len(address_data) == 0:
+            raise FunctionProcessingError("Não foi possível encontrar o endereço.")
+
+        logging.info(
+            f"Address data for user {user_thread.phone_number}: {address_data}"
+        )
+        return address_data
 
     def _get_all_menu_items(self, user_thread: UserThread):
         """### Get all menu items
@@ -197,12 +215,8 @@ class OpenAiIntegrationService:
             dict: The menu items.
         """
         menu_items = self._menuItemsRepository.get_all_menu_items()
-        return {
-            "menu_items": [
-                asdict(menu_item, dict_factory=self._asdict_factory)
-                for menu_item in menu_items
-            ]
-        }
+        logging.info(f"Menu items for user {user_thread.phone_number}: {menu_items}")
+        return {"menu_items": menu_items}
 
     def _get_order_details(self, order_id: str, user_thread: UserThread):
         """### Get order details
@@ -215,9 +229,12 @@ class OpenAiIntegrationService:
             dict: The order details.
         """
         order = self._orderService.get_order(order_id)
+
         if order is None:
-            return {"error": "Pedido não encontrado."}
-        return {"order_info": asdict(order, dict_factory=self._asdict_factory)}
+            raise FunctionProcessingError("Pedido não encontrado.")
+
+        logging.info(f"Order details for user {user_thread.phone_number}: {order}")
+        return {"order_info": order}
 
     def _get_establishment_contact_info(self, user_thread: UserThread):
         """### Get establishment contact info
@@ -228,9 +245,14 @@ class OpenAiIntegrationService:
         Returns:
             dict: The establishment contact info.
         """
+        establishment_phone_number = "+5511999999999"
+
+        logging.info(
+            f"Establishment contact info for user {user_thread.phone_number}: {establishment_phone_number}"
+        )
         return {
             "establishment_contact_info": {
-                "phone_number": "+5511999999999",
+                "phone_number": establishment_phone_number,
             }
         }
 
@@ -238,13 +260,13 @@ class OpenAiIntegrationService:
         self,
         street: str,
         number: str,
-        complement: str,
         neighborhood: str,
         city: str,
         state: str,
         country: str,
         zipcode: str,
         user_thread: UserThread,
+        complement: str | None = None,
     ) -> dict:
         """### Create an address
 
@@ -275,9 +297,8 @@ class OpenAiIntegrationService:
 
         self._addressRepository.add_address(address)
 
-        return {
-            "address_info": asdict(address, dict_factory=self._asdict_factory),
-        }
+        logging.info(f"Created address for user {user_thread.phone_number}: {address}")
+        return {"address_info": address}
 
     FUNCTIONS = {
         "get_all_menu_items": _get_all_menu_items,
@@ -315,20 +336,30 @@ class OpenAiIntegrationService:
                 )
 
                 output = self.FUNCTIONS[function_name](self, **json.loads(function_args), user_thread=user_thread)  # type: ignore
-                print(json.dumps(output))
                 tool_outputs.append(
                     {
                         "tool_call_id": tool_call.id,
-                        "output": json.dumps(output),
+                        "output": CustomJsonEncoder().encode(output),
+                    }
+                )
+
+            except FunctionProcessingError as e:
+                logging.error(e)
+                tool_outputs.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "output": json.dumps({"error": e.message}),
                     }
                 )
 
             except Exception as e:
-                print(e)
+                logging.error(e)
                 tool_outputs.append(
                     {
                         "tool_call_id": tool_call.id,
-                        "output": json.dumps({"error": "Erro ao executar ação."}),
+                        "output": json.dumps(
+                            {"error": "Erro inexperado ao executar ação."}
+                        ),
                     }
                 )
 
@@ -346,11 +377,11 @@ class OpenAiIntegrationService:
         with self.run_requests_lock:
             self.run_requests[thread_id] = datetime.now()
 
-    def execute_due_requests(self) -> dict[str, str]:
+    def execute_due_requests(self) -> dict[str, list[str]]:
         """### Executes all due run requests.
 
         Returns:
-            dict[str, str]: A dictionary containing the thread_id as key and the response as value.
+            dict[str, list[str]]: A dict with the thread IDs as keys and the messages sent by the assistant as values.
         """
         responses = {}
         with self.run_requests_lock:
@@ -361,14 +392,14 @@ class OpenAiIntegrationService:
                     del self.run_requests[thread_id]
         return responses
 
-    def run_assistant_on_thread(self, thread_id: str) -> str:
+    def run_assistant_on_thread(self, thread_id: str) -> list[str]:
         """### Run the assistant on a thread.
 
         Args:
             thread_id (str): The ID of the thread.
 
         Returns:
-            str: The assistant's response.
+            list[str]: The messages sent by the assistant.
         """
         run = self.client.beta.threads.runs.create(
             thread_id=thread_id,
@@ -423,4 +454,5 @@ class OpenAiIntegrationService:
 
                 messages.append(content.text.value)
 
-        return "\n".join(messages)
+        messages.reverse()  # For some baffling reason, the messages are returned in reverse order by OpenAI.
+        return messages
