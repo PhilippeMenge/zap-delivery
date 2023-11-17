@@ -19,7 +19,6 @@ class WhatsappIntegrationService:
         Returns:
             tuple[str, str]: (message, mobile)
         """
-        logging.info("Processing message...")
         changed_field = self.messenger.changed_field(data)
         if changed_field == "messages":
             new_message = self.messenger.is_message(data)

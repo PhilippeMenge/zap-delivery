@@ -10,7 +10,7 @@ class AddressModel(Base):
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     street: Mapped[str] = mapped_column(String(255))
     number: Mapped[str] = mapped_column(String(255))
-    complement: Mapped[str] = mapped_column(String(255))
+    complement: Mapped[str] = mapped_column(String(255), nullable=True)
     neighborhood: Mapped[str] = mapped_column(String(255))
     city: Mapped[str] = mapped_column(String(255))
     state: Mapped[str] = mapped_column(String(255))

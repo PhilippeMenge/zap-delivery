@@ -8,7 +8,7 @@ class Address:
 
     street: str
     number: str
-    complement: str
+    complement: str | None
     neighborhood: str
     city: str
     state: str
