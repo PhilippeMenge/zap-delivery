@@ -14,7 +14,7 @@ class MenuItemModel(Base):
     description: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean)
     establishment_id: Mapped[str] = mapped_column(String(255), ForeignKey("ESTABLISHMENTS.id"))    
-    establishment = relationship("EstablishmentModel", back_populates="menu_item")
+    establishment = relationship("EstablishmentModel")
 
     def to_entity(self):
         return MenuItem(

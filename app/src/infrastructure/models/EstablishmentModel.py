@@ -15,8 +15,7 @@ class EstablishmentModel(Base):
     production_time: Mapped[str] = mapped_column(Integer)
     prompt: Mapped[str] = mapped_column(String(255))
     address_id: Mapped[str] = mapped_column(String(255), ForeignKey("ADDRESSES.id"))
-    address = relationship("AddressModel", back_populates="establishment")
-    menu_item = relationship("MenuItemModel", back_populates="establishment")
+    address = relationship("AddressModel")    
     user_thread = relationship("UserThreadModel", back_populates="establishment")
     
 

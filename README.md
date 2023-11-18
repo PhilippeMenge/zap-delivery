@@ -4,7 +4,7 @@
 
 - Start the Docker
   ```bash
-    docker-compose -f dockercompose-local.yml
+    docker-compose -f dockercompose-local.yml up --build
     ```
   
     
