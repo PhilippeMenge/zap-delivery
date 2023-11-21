@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from src.routers.common import (
     OPENAI_INTEGRATION_SERVICE,
-    USER_THREAD_REPOSITORY,
+    USER_REPOSITORY,
     WHATSAPP_INTEGRATION_SERVICE,
 )
 from src.utils.logging import get_configured_logger
@@ -22,7 +22,13 @@ async def execute_due_requests():
     )
 
     for thread_id, messages in messages_per_thread.items():
-        phone_number = USER_THREAD_REPOSITORY.get_phone_number_from_thread_id(thread_id)
+        user = USER_REPOSITORY.get_user_from_thread_id(thread_id)
+        if user is None:
+            logger.error(f"Thread ID {thread_id} does not have a user associated.")
+            continue
+
+        phone_number = user.phone_number
+        establishment = user.establishment
         if phone_number is None:
             logger.error(
                 f"Thread ID {thread_id} does not have a phone number associated."
@@ -30,7 +36,9 @@ async def execute_due_requests():
             continue
 
         for message in messages:
-            WHATSAPP_INTEGRATION_SERVICE.send_message(message, phone_number)
+            WHATSAPP_INTEGRATION_SERVICE.send_message(
+                message, phone_number, establishment
+            )
 
     logger.debug("Processed execute due requests request.")
     return Response(status_code=200)

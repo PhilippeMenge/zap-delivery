@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from src.domain.Establishment import Establishment
 
 
 @dataclass
@@ -10,3 +11,4 @@ class MenuItem:
     price: str
     description: str
     is_active: bool
+    establishment: Establishment

@@ -1,13 +1,12 @@
 import json
 from datetime import datetime
 from threading import Lock
-from traceback import format_exc
 
 import openai
 from src.config import OPENAI_API_KEY, OPENAI_ASSISTANT_ID
 from src.infrastructure.repositories.address_repository import AddressRepository
 from src.infrastructure.repositories.menu_items_repository import MenuItemRepository
-from src.infrastructure.repositories.user_thread_repository import UserThreadRepository
+from src.infrastructure.repositories.user_repository import UserRepository
 from src.services.exceptions import FunctionProcessingError
 from src.services.google_maps_integration_service import GoogleMapsIntegrationService
 from src.services.openai_functions import *
@@ -22,7 +21,7 @@ class OpenAiIntegrationService:
     def __init__(
         self,
         menuItemsRepository: MenuItemRepository,
-        userThreadRepository: UserThreadRepository,
+        userRepository: UserRepository,
         orderService: OrderService,
         googleMapsIntegrationService: GoogleMapsIntegrationService,
         addressRepository: AddressRepository,
@@ -35,7 +34,7 @@ class OpenAiIntegrationService:
         self.assistant = self.client.beta.assistants.retrieve(OPENAI_ASSISTANT_ID)
 
         self._menuItemsRepository = menuItemsRepository
-        self._userThreadRepository = userThreadRepository
+        self._userRepository = userRepository
         self._orderService = orderService
         self._googleMapsIntegrationService = googleMapsIntegrationService
         self._addressRepository = addressRepository
@@ -95,11 +94,9 @@ class OpenAiIntegrationService:
                 )
 
                 thread_id = run.thread_id
-                user_thread = self._userThreadRepository.get_user_thread_from_thread_id(
-                    thread_id=thread_id
-                )
+                user = self._userRepository.get_user_from_thread_id(thread_id=thread_id)
 
-                output = get_function(function_name)(openAiIntegrationService=self, **function_args, user_thread=user_thread)  # type: ignore
+                output = get_function(function_name)(openAiIntegrationService=self, **function_args, user=user)  # type: ignore
 
                 logger.info(f"Sucessfully executed action {function_name}")
 
@@ -175,38 +172,16 @@ class OpenAiIntegrationService:
         """
         logger.info(f"Running assistant on thread {thread_id}.")
 
+        user = self._userRepository.get_user_from_thread_id(thread_id=thread_id)
+
+        if user is None:
+            logger.error(f"Thread ID {thread_id} does not have a user associated.")
+            return []
+
         run = self.client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=self.assistant.id,
-            instructions="""Contexto: Você é Zé, atendente virtual do HackaBurger, especializado em responder mensagens de WhatsApp de clientes.
-
-Objetivo Principal: Coletar informações sobre os pedidos dos clientes e encaminhá-las ao servidor.
-
-Memória de Pedidos: Lembre-se de detalhes de pedidos anteriores, como endereço e itens habituais, para sugerir ou confirmar com o cliente.
-
-Interação com o Cliente:
-
-Sugestões Personalizadas: Caso o cliente esqueça de um item habitual, pergunte se deseja adicioná-lo. Nunca inclua itens sem consentimento explícito.
-Recomendações de Menu: Sugira itens que complementem o pedido atual, mas nunca os adicione sem consentimento do cliente.
-Proatividade: Ofereça o cardápio ativamente.
-Antes de gerar o link de pagamento, verifique no histórico da conversa se o cliente já forneceu algum endereço anteriormente antes de pedir o endereço dele.
-Caso ele já tenha fornecido um endereço, pergunte se ele deseja utilizar o mesmo endereço.
-Uso de Informações:
-
-Utilize o horário da mensagem para distinguir entre pedidos novos e antigos.
-Confirme sempre as informações do pedido antes de chamar a função create_order, incluindo preços detalhados, valor total e endereço de entrega.
-No caso de endereço pré-cadastrado, confirme se a entrega deve ser feita nesse endereço.
-Para clientes sem endereço cadastrado, solicite Rua, Número, Bairro e Complemento.
-Comunicação:
-
-Mantenha um tom profissional.
-Use as formatações de texto do WhatsApp (*bold*, _italic_) para enfatizar informações importantes.
-Links e Funções:
-
-Sempre forneça links completos (ex: https://link.com). Você não consegue utilizar palavras clicáveis (ex: clique aqui para pagar).
-Utilize as funções disponíveis conforme necessário para otimizar o atendimento.
-
-""",
+            instructions=user.establishment.custom_prompt_section,
         )
 
         run_completed = False

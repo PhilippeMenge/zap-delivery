@@ -48,11 +48,11 @@ class OrderModel(Base):
     status: Mapped[str] = mapped_column(String(255))
     checkout_session_id: Mapped[str] = mapped_column(String(255), nullable=True)
     user_phone_number: Mapped[str] = mapped_column(
-        String(255), ForeignKey("USER_THREADS.phone_number")
+        String(255), ForeignKey("USERS.phone_number")
     )
     address_id: Mapped[str] = mapped_column(String(255), ForeignKey("ADDRESSES.id"))
     address = relationship("AddressModel", back_populates="orders")
-    user_thread = relationship("UserThreadModel", back_populates="orders")
+    user = relationship("UserModel", back_populates="orders")
     order_items = relationship("OrderItemModel", back_populates="order")
 
     def to_entity(self):
@@ -61,7 +61,7 @@ class OrderModel(Base):
             address=self.address.to_entity(),
             status=OrderStatus(self.status),
             checkout_session_id=self.checkout_session_id,
-            user_thread=self.user_thread.to_entity(),
+            user=self.user.to_entity(),
             itens=[order_item.to_entity() for order_item in self.order_items],
         )
 
@@ -72,7 +72,7 @@ class OrderModel(Base):
             address=AddressModel.from_entity(order.address),
             status=order.status.value,
             checkout_session_id=order.checkout_session_id,
-            user_phone_number=order.user_thread.phone_number,
+            user_phone_number=order.user.phone_number,
             order_items=[
                 OrderItemModel.from_entity(order_item) for order_item in order.itens
             ],

@@ -5,7 +5,7 @@ from typing import Callable
 from src.domain.Address import Address
 from src.domain.Order import Order, OrderStatus
 from src.domain.OrderItem import OrderItem
-from src.domain.UserThread import UserThread
+from src.domain.User import User
 from src.services import openai_integration_service
 from src.services.exceptions import FunctionProcessingError
 from src.utils.logging import get_configured_logger
@@ -48,35 +48,28 @@ def get_function(name: str) -> Callable:
 def get_eta(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
     user_address_id: str,
-    user_thread: UserThread,
+    user: User,
 ) -> dict:
     """### Calculates the ETA for a given address.
 
     For now, values for the prep time and restaurant location are hardcoded.
-    In the future, the restaurant data will be retrieved from the UserThread.
+    In the future, the restaurant data will be retrieved from the User.
 
     Args:
         user_address_id (str): The ID of the user's address.
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The ETA.
     """
     logger.info(
-        f"Calculating ETA for user {user_thread.phone_number} on address {user_address_id}."
+        f"Calculating ETA for user {user.phone_number} on address {user_address_id}."
     )
-    establishment_address = Address(
-        street="Av Boa Viagem",
-        number="2080",
-        complement="Sala 1001",
-        neighborhood="Boa Viagem",
-        city="Recife",
-        state="PE",
-        country="Brasil",
-        zipcode="51111-000",
+    establishment_address = user.establishment.address
+    establhisment_production_time_minutes = (
+        user.establishment.estimated_production_minutes
     )
 
-    establhisment_production_time_minutes = 30
     establishment_error_margin_minutes = 10
 
     user_address = openAiIntegrationService._addressRepository.get_address(
@@ -94,7 +87,7 @@ def get_eta(
 
     if seconds_between_addresses is None:
         logger.error(
-            f"Could not calculate time between addresses for user {user_thread.phone_number}"
+            f"Could not calculate time between addresses for user {user.phone_number}"
         )
 
         raise FunctionProcessingError(
@@ -106,7 +99,7 @@ def get_eta(
     minutes_between_addresses = seconds_between_addresses // 60
 
     logger.info(
-        f"ETA for user {user_thread.phone_number}: {minutes_between_addresses} minutes"
+        f"ETA for user {user.phone_number}: {minutes_between_addresses} minutes"
     )
     return {
         "eta_seconds": seconds_between_addresses,
@@ -119,26 +112,26 @@ def create_order(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
     address_id: str,
     items: list[dict],
-    user_thread: UserThread,
+    user: User,
 ) -> dict:
     """### Create an order
 
     Args:
         address_id (str): The ID of the address.
         items (list[dict]): The items of the order.
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The order info and the payment URL.
     """
-    logger.info(f"Creating order for user {user_thread.phone_number}")
+    logger.info(f"Creating order for user {user.phone_number}")
 
     order_items = []
     for item in items:
         amount = item["amount"]
         observation = item.get("observation", "")
         menu_item = openAiIntegrationService._menuItemsRepository.get_menu_item_by_id(
-            item["item_id"]
+            item["item_id"], user.establishment
         )
 
         if menu_item is None:
@@ -161,12 +154,12 @@ def create_order(
         address=address,
         itens=order_items,
         status=OrderStatus.AWAITING_PAYMENT,
-        user_thread=user_thread,
+        user=user,
     )
 
     checkout_session_url = openAiIntegrationService._orderService.create_order(order)
     logger.info(
-        f"Created order {order.id} for user {user_thread.phone_number}, checkout session URL: {checkout_session_url}"
+        f"Created order {order.id} for user {user.phone_number}, checkout session URL: {checkout_session_url}"
     )
 
     return {
@@ -179,7 +172,7 @@ def create_order(
 def get_address_data_from_text(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
     text: str,
-    user_thread: UserThread,
+    user: User,
 ):
     """### Get address data from text
 
@@ -187,7 +180,7 @@ def get_address_data_from_text(
 
     Args:
         text (str): The text.
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The address data.
@@ -211,19 +204,21 @@ def get_address_data_from_text(
 @register_function("get_all_menu_items")
 def get_all_menu_items(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
-    user_thread: UserThread,
+    user: User,
 ):
     """### Get all menu items
 
     Args:
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The menu items.
     """
-    menu_items = openAiIntegrationService._menuItemsRepository.get_all_menu_items()
+    menu_items = openAiIntegrationService._menuItemsRepository.get_all_menu_items_by_establishment(
+        user.establishment
+    )
 
-    logger.info(f"Sucessfully got menu items for user {user_thread.phone_number}")
+    logger.info(f"Sucessfully got menu items for user {user.phone_number}")
     logger.debug(f"Menu items: {menu_items}")
     return {"menu_items": menu_items}
 
@@ -232,13 +227,13 @@ def get_all_menu_items(
 def get_order_details(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
     order_id: str,
-    user_thread: UserThread,
+    user: User,
 ):
     """### Get order details
 
     Args:
         order_id (str): The ID of the order.
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The order details.
@@ -259,20 +254,20 @@ def get_order_details(
 @register_function("get_establishment_contact_info")
 def get_establishment_contact_info(
     openAiIntegrationService: openai_integration_service.OpenAiIntegrationService,
-    user_thread: UserThread,
+    user: User,
 ):
     """### Get establishment contact info
 
     Args:
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The establishment contact info.
     """
-    establishment_phone_number = "+5511999999999"
+    establishment_phone_number = user.establishment.contact_number
 
     logger.info(
-        f"Sucessfully got establishment contact info for user {user_thread.phone_number}"
+        f"Sucessfully got establishment contact info for user {user.phone_number}"
     )
     return {
         "establishment_contact_info": {
@@ -291,7 +286,7 @@ def create_address(
     state: str,
     country: str,
     zipcode: str,
-    user_thread: UserThread,
+    user: User,
     complement: str | None = None,
 ) -> dict:
     """### Create an address
@@ -305,12 +300,12 @@ def create_address(
         state (str): The state.
         country (str): The country.
         zipcode (str): The zipcode.
-        user_thread (UserThread): The user thread.
+        user (User): The user.
 
     Returns:
         dict: The address data.
     """
-    logger.info(f"Creating address for user {user_thread.phone_number}")
+    logger.info(f"Creating address for user {user.phone_number}")
     address = Address(
         street=street,
         number=number,
@@ -325,6 +320,6 @@ def create_address(
     openAiIntegrationService._addressRepository.add_address(address)
 
     logger.info(
-        f"Sucessfully created address for user {user_thread.phone_number}: {address.id}"
+        f"Sucessfully created address for user {user.phone_number}: {address.id}"
     )
     return {"address_info": address}
