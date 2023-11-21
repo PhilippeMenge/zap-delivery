@@ -2,10 +2,11 @@ from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import Response
 from src.config import WHATSAPP_VERIFY_TOKEN
-from src.domain.UserThread import UserThread
+from src.domain.User import User
 from src.routers.common import (
+    ESTABLISHMENT_REPOSITORY,
     OPENAI_INTEGRATION_SERVICE,
-    USER_THREAD_REPOSITORY,
+    USER_REPOSITORY,
     WHATSAPP_INTEGRATION_SERVICE,
 )
 from src.utils.logging import get_configured_logger
@@ -40,22 +41,40 @@ async def handle_webhook(request: Request):
     """### Webhook endpoint for handling events."""
     logger.info("Received WhatsApp webhook event.")
     data = await request.json()
-    message_data = WHATSAPP_INTEGRATION_SERVICE.get_message_text(data)
+
+    whatsapp_phone_number_id = data["entry"][0]["changes"][0]["value"]["metadata"][
+        "phone_number_id"
+    ]
+    establishment = (
+        ESTABLISHMENT_REPOSITORY.get_establishment_from_whatsapp_phone_number_id(
+            whatsapp_phone_number_id
+        )
+    )
+
+    if establishment is None:
+        logger.error(
+            f"Received WhatsApp webhook event for unknown WhatsApp phone number ID {whatsapp_phone_number_id}."
+        )
+        return Response(status_code=400)
+
+    message_data = WHATSAPP_INTEGRATION_SERVICE.get_message_text(data, establishment)
 
     if message_data is None:
         return Response(status_code=200)
 
     message, mobile = message_data
 
-    user_thread = USER_THREAD_REPOSITORY.get_user_thread_from_phone_number(mobile)
-    if user_thread is None:
+    user = USER_REPOSITORY.get_user_from_phone_number(mobile, establishment)
+    if user is None:
         thread_id = OPENAI_INTEGRATION_SERVICE.create_thread()
 
-        user_thread = UserThread(phone_number=mobile, thread_id=thread_id)
+        user = User(
+            phone_number=mobile, thread_id=thread_id, establishment=establishment
+        )
 
-        USER_THREAD_REPOSITORY.create_user_thread(user_thread)
+        USER_REPOSITORY.create_user(user)
 
-    thread_id = user_thread.thread_id
+    thread_id = user.thread_id
 
     OPENAI_INTEGRATION_SERVICE.add_user_message_to_thread(thread_id, message)
     OPENAI_INTEGRATION_SERVICE.request_run_assistant_on_thread(thread_id)

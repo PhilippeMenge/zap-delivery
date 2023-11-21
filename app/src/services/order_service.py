@@ -48,7 +48,7 @@ class OrderService:
         self._orderRepository.add_order(order)
 
         logger.info(
-            f"Created order {order.id} for user {order.user_thread.phone_number}, checkout session URL: {checkout_session_url}"
+            f"Created order {order.id} for user {order.user.phone_number}, checkout session URL: {checkout_session_url}"
         )
         return checkout_session_url
 
@@ -83,13 +83,15 @@ class OrderService:
             self.update_order_status(order.id, OrderStatus.IN_PREPARATION)
             self._whatsappIntegrationService.send_message(
                 f"Seu pedido foi pago com sucesso e está sendo preparado.",
-                order.user_thread.phone_number,
+                order.user.phone_number,
+                order.user.establishment,
             )
             logger.info(f"Order {order.id} payment processed successfully.")
         else:
             self.update_order_status(order.id, OrderStatus.CANCELED)
             self._whatsappIntegrationService.send_message(
                 f"Seu pedido foi cancelado. Entre em contato conosco para mais informações.",
-                order.user_thread.phone_number,
+                order.user.phone_number,
+                order.user.establishment,
             )
             logger.info(f"Order {order.id} payment failed.")

@@ -4,7 +4,8 @@ from enum import Enum
 
 from src.domain.Address import Address
 from src.domain.OrderItem import OrderItem
-from src.domain.UserThread import UserThread
+
+from src.domain.User import User
 
 
 class OrderStatus(Enum):
@@ -23,6 +24,6 @@ class Order:
     address: Address
     status: OrderStatus
     itens: list[OrderItem]
-    user_thread: UserThread
+    user: User
     checkout_session_id: str | None = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
