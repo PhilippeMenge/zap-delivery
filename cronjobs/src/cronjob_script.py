@@ -5,7 +5,7 @@ import requests
 
 ENDPOINT = "http://app:8000/whatsapp/execute_due_requests"
 
-sleep(1)
+sleep(5)
 
 last_execution = datetime.datetime.now()
 while True:
