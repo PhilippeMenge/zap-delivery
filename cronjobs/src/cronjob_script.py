@@ -5,7 +5,6 @@ import requests
 
 ENDPOINT = "http://app:8000/cronjobs/execute_due_requests"
 
-sleep(1)
 
 last_execution = datetime.datetime.now()
 while True:

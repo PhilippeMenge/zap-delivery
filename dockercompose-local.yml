@@ -26,4 +26,5 @@ services:
     env_file:
       - .env
     depends_on:
-      - app
+      app:
+        condition: service_healthy
