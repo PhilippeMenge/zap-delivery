@@ -158,7 +158,7 @@ class OpenAiIntegrationService:
             run_requests_copy = self.run_requests.copy()
             for thread_id, request_time in run_requests_copy.items():
                 if (datetime.now() - request_time).seconds >= 5:
-                    responses[thread_id] = self.run_assistant_on_thread(thread_id)
+                    responses[thread_id] = self._run_assistant_on_thread(thread_id)
                     del self.run_requests[thread_id]
         return responses
 
@@ -206,8 +206,7 @@ Links e Funções:
 Sempre forneça links completos (ex: https://link.com). Você não consegue utilizar palavras clicáveis (ex: clique aqui para pagar).
 Utilize as funções disponíveis conforme necessário para otimizar o atendimento.
 
-"""
-
+""",
         )
 
         run_completed = False
