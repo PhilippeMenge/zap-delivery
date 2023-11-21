@@ -1,7 +1,8 @@
-import logging
-
 from heyoo import WhatsApp
 from src.config import WHATSAPP_API_KEY, WHATSAPP_NUMBER_ID
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 
 class WhatsappIntegrationService:
@@ -42,3 +43,4 @@ class WhatsappIntegrationService:
             mobile (str): The phone number to send the message to
         """
         self.messenger.send_message(message, mobile)
+        logger.debug(f"Sent message {message} to {mobile}.")

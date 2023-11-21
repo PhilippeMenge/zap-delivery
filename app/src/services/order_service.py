@@ -2,6 +2,9 @@ from src.domain.Order import Order, OrderStatus
 from src.infrastructure.repositories.order_repository import OrderRepository
 from src.services.stripe_integration_service import StripeIntegrationService
 from src.services.whatsapp_integration_service import WhatsappIntegrationService
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 
 class OrderService:
@@ -24,6 +27,7 @@ class OrderService:
         Returns:
             Order: The order instance. None if not found.
         """
+        logger.info(f"Getting order {order_id}")
         return self._orderRepository.get_order(order_id)
 
     def create_order(self, order: Order) -> str:
@@ -39,12 +43,13 @@ class OrderService:
             order
         )
 
-        if checkout_session_data is None:
-            raise Exception("Failed to create checkout session.")
-
         order.checkout_session_id, checkout_session_url = checkout_session_data
 
         self._orderRepository.add_order(order)
+
+        logger.info(
+            f"Created order {order.id} for user {order.user_thread.phone_number}, checkout session URL: {checkout_session_url}"
+        )
         return checkout_session_url
 
     def update_order_status(self, order_id: str, order_status: OrderStatus):
@@ -58,6 +63,8 @@ class OrderService:
         if order is None:
             raise Exception("Order not found.")
         order.status = order_status
+
+        logger.info(f"Updated order {order_id} status to {order_status}.")
         self._orderRepository.add_order(order)
 
     def process_order_payment(self, checkout_session_id: str, is_successful: bool):
@@ -78,9 +85,11 @@ class OrderService:
                 f"Seu pedido foi pago com sucesso e está sendo preparado.",
                 order.user_thread.phone_number,
             )
+            logger.info(f"Order {order.id} payment processed successfully.")
         else:
             self.update_order_status(order.id, OrderStatus.CANCELED)
             self._whatsappIntegrationService.send_message(
                 f"Seu pedido foi cancelado. Entre em contato conosco para mais informações.",
                 order.user_thread.phone_number,
             )
+            logger.info(f"Order {order.id} payment failed.")

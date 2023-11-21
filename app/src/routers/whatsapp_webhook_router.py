@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter
 from fastapi.requests import Request
 from fastapi.responses import Response
@@ -10,6 +8,9 @@ from src.routers.common import (
     USER_THREAD_REPOSITORY,
     WHATSAPP_INTEGRATION_SERVICE,
 )
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 router = APIRouter()
 
@@ -17,11 +18,18 @@ router = APIRouter()
 @router.get("/")
 def verify_token(request: Request):
     """### Webhook endpoint for WhatsApp verification."""
+    logger.info("Received WhatsApp webhook verification request.")
+
     if request.query_params.get("hub.verify_token") == WHATSAPP_VERIFY_TOKEN:
-        logging.info("Verified webhook")
+        logger.info("Verified webhook")
         challenge = request.query_params.get("hub.challenge")
+
+        logger.info("WhatsApp webhook verification request processed.")
         return Response(content=challenge, media_type="text/plain", status_code=200)
-    logging.error("Webhook Verification failed")
+
+    logger.critical(
+        "WhatsApp webhook verification request failed. This could prevent WhatsApp messages from being processed."
+    )
     return Response(
         content="Verification failed", media_type="text/plain", status_code=403
     )
@@ -30,6 +38,7 @@ def verify_token(request: Request):
 @router.post("/")
 async def handle_webhook(request: Request):
     """### Webhook endpoint for handling events."""
+    logger.info("Received WhatsApp webhook event.")
     data = await request.json()
     message_data = WHATSAPP_INTEGRATION_SERVICE.get_message_text(data)
 
@@ -48,24 +57,8 @@ async def handle_webhook(request: Request):
 
     thread_id = user_thread.thread_id
 
-    OPENAI_INTEGRATION_SERVICE.send_user_message(thread_id, message)
+    OPENAI_INTEGRATION_SERVICE.add_user_message_to_thread(thread_id, message)
     OPENAI_INTEGRATION_SERVICE.request_run_assistant_on_thread(thread_id)
-    return Response(status_code=200)
 
-
-@router.get("/execute_due_requests")
-async def execute_due_requests():
-    messages_per_thread = OPENAI_INTEGRATION_SERVICE.execute_due_requests()
-
-    for thread_id, messages in messages_per_thread.items():
-        phone_number = USER_THREAD_REPOSITORY.get_phone_number_from_thread_id(thread_id)
-        if phone_number is None:
-            logging.error(
-                f"Thread ID {thread_id} does not have a phone number associated"
-            )
-            continue
-
-        for message in messages:
-            WHATSAPP_INTEGRATION_SERVICE.send_message(message, phone_number)
-
+    logger.info("Processed WhatsApp webhook event.")
     return Response(status_code=200)

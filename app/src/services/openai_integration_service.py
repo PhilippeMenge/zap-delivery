@@ -1,5 +1,4 @@
 import json
-import logging
 from datetime import datetime
 from threading import Lock
 from traceback import format_exc
@@ -14,6 +13,9 @@ from src.services.google_maps_integration_service import GoogleMapsIntegrationSe
 from src.services.openai_functions import *
 from src.services.order_service import OrderService
 from src.utils.custom_json_encoder import CustomJsonEncoder
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 
 class OpenAiIntegrationService:
@@ -48,11 +50,12 @@ class OpenAiIntegrationService:
             str: The ID of the thread.
         """
         thread = self.client.beta.threads.create()
-        logging.info(f"Created thread {thread.id}")
+
+        logger.info(f"Created thread {thread.id}.")
         return thread.id
 
-    def send_user_message(self, thread_id: str, message: str):
-        """### Send a user message to OpenAI
+    def add_user_message_to_thread(self, thread_id: str, message: str):
+        """### Add a message to a thread.
 
         Args:
             thread_id (str): The ID of the thread.
@@ -64,7 +67,8 @@ class OpenAiIntegrationService:
             content=message,
             role="user",
         )
-        logging.info(f"Added message to thread {thread_id}: {message}")
+
+        logger.info(f"Added message {message} to thread {thread_id}.")
 
     def _execute_actions(self, run) -> list[dict]:
         """### Execute all actions in a run.
@@ -86,12 +90,19 @@ class OpenAiIntegrationService:
                 function_name = tool_call.function.name
                 function_args = json.loads(tool_call.function.arguments)
 
+                logger.debug(
+                    f"Executing action {function_name} with args {function_args}."
+                )
+
                 thread_id = run.thread_id
                 user_thread = self._userThreadRepository.get_user_thread_from_thread_id(
                     thread_id=thread_id
                 )
 
                 output = get_function(function_name)(openAiIntegrationService=self, **function_args, user_thread=user_thread)  # type: ignore
+
+                logger.info(f"Sucessfully executed action {function_name}")
+
                 tool_outputs.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -100,7 +111,7 @@ class OpenAiIntegrationService:
                 )
 
             except FunctionProcessingError as e:
-                logging.error(e)
+                logger.exception(e)
                 tool_outputs.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -109,7 +120,7 @@ class OpenAiIntegrationService:
                 )
 
             except Exception as e:
-                logging.error(format_exc())
+                logger.exception(e)
                 tool_outputs.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -130,11 +141,14 @@ class OpenAiIntegrationService:
         Args:
             thread_id (str): The ID of the thread.
         """
+        logger.info(f"Requesting run assistant on thread {thread_id}.")
         with self.run_requests_lock:
             self.run_requests[thread_id] = datetime.now()
 
-    def execute_due_requests(self) -> dict[str, list[str]]:
-        """### Executes all due run requests.
+    def execute_due_run_assistant_requests(self) -> dict[str, list[str]]:
+        """### Execute all due run_assistant requests.
+
+        This function should be called periodically to execute all due run_assistant requests.
 
         Returns:
             dict[str, list[str]]: A dict with the thread IDs as keys and the messages sent by the assistant as values.
@@ -148,8 +162,10 @@ class OpenAiIntegrationService:
                     del self.run_requests[thread_id]
         return responses
 
-    def run_assistant_on_thread(self, thread_id: str) -> list[str]:
+    def _run_assistant_on_thread(self, thread_id: str) -> list[str]:
         """### Run the assistant on a thread.
+
+        This function should not be called directly. Use request_run_assistant_on_thread instead.
 
         Args:
             thread_id (str): The ID of the thread.
@@ -157,6 +173,8 @@ class OpenAiIntegrationService:
         Returns:
             list[str]: The messages sent by the assistant.
         """
+        logger.info(f"Running assistant on thread {thread_id}.")
+
         run = self.client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=self.assistant.id,

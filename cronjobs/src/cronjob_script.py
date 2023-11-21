@@ -3,7 +3,7 @@ from time import sleep
 
 import requests
 
-ENDPOINT = "http://app:8000/whatsapp/execute_due_requests"
+ENDPOINT = "http://app:8000/cronjobs/execute_due_requests"
 
 sleep(1)
 

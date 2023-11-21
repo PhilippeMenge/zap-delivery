@@ -1,23 +1,24 @@
-import json
-
 import stripe
 from src.config import STRIPE_API_KEY
 from src.domain.Order import Order
 from src.domain.OrderItem import OrderItem
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 
 class StripeIntegrationService:
     def __init__(self):
         stripe.api_key = STRIPE_API_KEY
 
-    def create_checkout_session(self, order: Order) -> tuple[str, str] | None:
+    def create_checkout_session(self, order: Order) -> tuple[str, str]:
         """### Create a checkout session in Stripe
 
         Args:
             order (Order): The order to be paid
 
         Returns:
-            tuple[str, str]: (session_id, session_url) if successful. None if not.
+            tuple[str, str]: (session_id, session_url)
         """
 
         def build_line_item(item: OrderItem):
@@ -32,18 +33,18 @@ class StripeIntegrationService:
                 "quantity": item.amount,
             }
 
-        try:
-            session = stripe.checkout.Session.create(
-                line_items=[build_line_item(item) for item in order.itens],
-                mode="payment",
-                success_url="https://www.google.com",
-                cancel_url="https://www.google.com",
-            )
+        session = stripe.checkout.Session.create(
+            line_items=[build_line_item(item) for item in order.itens],
+            mode="payment",
+            success_url="https://www.google.com",
+            cancel_url="https://www.google.com",
+        )
 
-            return session.id, session.url  # type: ignore
-        except Exception as e:
-            print(e)
-            return None
+        if session.url is None:
+            raise Exception("Failed to create checkout session. Session URL is None.")
+
+        logger.info(f"Created checkout session {session.id}")
+        return session.id, session.url
 
     def get_payment_session_event_info(self, payload) -> tuple[str, bool]:
         """### Get payment session event info from Stripe
@@ -60,6 +61,8 @@ class StripeIntegrationService:
         session = event["data"]["object"]
 
         if event["type"] == "checkout.session.completed":
+            logger.info(f"Checkout session {session['id']} completed.")
             return session["id"], True
 
+        logger.info(f"Checkout session {session['id']} failed.")
         return session["id"], False

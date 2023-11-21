@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Callable
 
 from src.domain.Address import Address
@@ -9,6 +8,9 @@ from src.domain.OrderItem import OrderItem
 from src.domain.UserThread import UserThread
 from src.services import openai_integration_service
 from src.services.exceptions import FunctionProcessingError
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 FUNCTIONS: dict[str, Callable] = {}
 
@@ -37,6 +39,7 @@ def get_function(name: str) -> Callable:
 
     Returns:
         Callable: The function.
+
     """
     return FUNCTIONS[name]
 
@@ -59,6 +62,9 @@ def get_eta(
     Returns:
         dict: The ETA.
     """
+    logger.info(
+        f"Calculating ETA for user {user_thread.phone_number} on address {user_address_id}."
+    )
     establishment_address = Address(
         street="Av Boa Viagem",
         number="2080",
@@ -78,15 +84,19 @@ def get_eta(
     )
 
     if user_address is None:
-        raise FunctionProcessingError(
-            "Endereço não encontrado do usuário não encontrado."
-        )
+        logger.error(f"User address {user_address_id} not found.")
+
+        raise FunctionProcessingError("Endereço do usuário não encontrado.")
 
     seconds_between_addresses = openAiIntegrationService._googleMapsIntegrationService.get_time_between_addresses(
         origin=establishment_address, destination=user_address
     )
 
     if seconds_between_addresses is None:
+        logger.error(
+            f"Could not calculate time between addresses for user {user_thread.phone_number}"
+        )
+
         raise FunctionProcessingError(
             "Não foi possível calcular o tempo entre os endereços. A rota pode não existir."
         )
@@ -95,8 +105,8 @@ def get_eta(
     seconds_between_addresses += establishment_error_margin_minutes * 60
     minutes_between_addresses = seconds_between_addresses // 60
 
-    logging.info(
-        f"ETA for user {user_thread.phone_number} is {minutes_between_addresses} minutes."
+    logger.info(
+        f"ETA for user {user_thread.phone_number}: {minutes_between_addresses} minutes"
     )
     return {
         "eta_seconds": seconds_between_addresses,
@@ -121,6 +131,8 @@ def create_order(
     Returns:
         dict: The order info and the payment URL.
     """
+    logger.info(f"Creating order for user {user_thread.phone_number}")
+
     order_items = []
     for item in items:
         amount = item["amount"]
@@ -130,6 +142,8 @@ def create_order(
         )
 
         if menu_item is None:
+            logger.error(f"Item {item['item_id']} not found.")
+
             raise FunctionProcessingError(f"Item {item['item_id']} não encontrado.")
 
         order_items.append(
@@ -139,6 +153,8 @@ def create_order(
     address = openAiIntegrationService._addressRepository.get_address(address_id)
 
     if address is None:
+        logger.error(f"Address {address_id} not found.")
+
         raise FunctionProcessingError("Endereço não encontrado.")
 
     order = Order(
@@ -149,7 +165,7 @@ def create_order(
     )
 
     checkout_session_url = openAiIntegrationService._orderService.create_order(order)
-    logging.info(
+    logger.info(
         f"Created order {order.id} for user {user_thread.phone_number}, checkout session URL: {checkout_session_url}"
     )
 
@@ -176,6 +192,7 @@ def get_address_data_from_text(
     Returns:
         dict: The address data.
     """
+    logger.info(f"Getting address data from text: {text}")
     address_data = (
         openAiIntegrationService._googleMapsIntegrationService.get_address_from_text(
             text
@@ -183,9 +200,11 @@ def get_address_data_from_text(
     )
 
     if len(address_data) == 0:
+        logger.error(f"Could not get address data from text: {text}")
+
         raise FunctionProcessingError("Não foi possível encontrar o endereço.")
 
-    logging.info(f"Address data for user {user_thread.phone_number}: {address_data}")
+    logger.info(f"Succesfully got address data from text: {address_data}")
     return address_data
 
 
@@ -204,7 +223,8 @@ def get_all_menu_items(
     """
     menu_items = openAiIntegrationService._menuItemsRepository.get_all_menu_items()
 
-    logging.info(f"Menu items for user {user_thread.phone_number}: {menu_items}")
+    logger.info(f"Sucessfully got menu items for user {user_thread.phone_number}")
+    logger.debug(f"Menu items: {menu_items}")
     return {"menu_items": menu_items}
 
 
@@ -223,12 +243,16 @@ def get_order_details(
     Returns:
         dict: The order details.
     """
+    logger.info(f"Getting order details for order {order_id}")
     order = openAiIntegrationService._orderService.get_order(order_id)
 
     if order is None:
+        logger.error(f"Order {order_id} not found.")
+
         raise FunctionProcessingError("Pedido não encontrado.")
 
-    logging.info(f"Order details for user {user_thread.phone_number}: {order}")
+    logger.info(f"Sucessfully got order details for order {order_id}")
+    logger.debug(f"Order details: {order}")
     return {"order_info": order}
 
 
@@ -247,8 +271,8 @@ def get_establishment_contact_info(
     """
     establishment_phone_number = "+5511999999999"
 
-    logging.info(
-        f"Establishment contact info for user {user_thread.phone_number}:{establishment_phone_number}"
+    logger.info(
+        f"Sucessfully got establishment contact info for user {user_thread.phone_number}"
     )
     return {
         "establishment_contact_info": {
@@ -286,6 +310,7 @@ def create_address(
     Returns:
         dict: The address data.
     """
+    logger.info(f"Creating address for user {user_thread.phone_number}")
     address = Address(
         street=street,
         number=number,
@@ -298,5 +323,8 @@ def create_address(
     )
 
     openAiIntegrationService._addressRepository.add_address(address)
-    logging.info(f"Created address for user {user_thread.phone_number}: {address}")
+
+    logger.info(
+        f"Sucessfully created address for user {user_thread.phone_number}: {address.id}"
+    )
     return {"address_info": address}

@@ -1,6 +1,9 @@
 from googlemaps import Client
 from src.config import GOOGLE_MAPS_API_KEY
 from src.domain.Address import Address
+from src.utils.logging import get_configured_logger
+
+logger = get_configured_logger(__name__)
 
 
 class GoogleMapsIntegrationService:
@@ -16,6 +19,8 @@ class GoogleMapsIntegrationService:
         Returns:
             list[dict]: A list of dictionaries containing the address details.
         """
+        logger.info(f"Getting address from text: {address_text}")
+
         results = self.client.places(address_text)
         place_ids = [result["place_id"] for result in results["results"]]
 
@@ -31,6 +36,8 @@ class GoogleMapsIntegrationService:
 
             details.append(detail_processed)
 
+        logger.info(f"Succesfully got address from text {address_text}")
+        logger.debug(f"Address details: {details}")
         return details
 
     def get_time_between_addresses(
@@ -45,9 +52,16 @@ class GoogleMapsIntegrationService:
         Returns:
             int | None: The time in seconds between the two addresses. None if not found.
         """
+        logger.info(f"Getting time between addresses: {origin} and {destination}")
+
         result = self.client.directions(str(origin), str(destination))
 
         if len(result) == 0:
             return None
 
-        return result[0]["legs"][0]["duration"]["value"]
+        seconds_between_addresses = result[0]["legs"][0]["duration"]["value"]
+
+        logger.info(
+            f"Succesfully got time between addresses {origin} and {destination}: {seconds_between_addresses} seconds"
+        )
+        return seconds_between_addresses
