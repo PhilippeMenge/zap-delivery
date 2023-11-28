@@ -17,6 +17,15 @@ class OrderStatus(Enum):
     CONTACT_SUPPORT = "CONTACT_SUPPORT"
 
 
+
+@dataclass
+class SafeOrder:
+    """### Represents an order."""
+
+    address: Address
+    status: OrderStatus
+    itens: list[OrderItem]
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 @dataclass
 class Order:
     """### Represents an order."""
@@ -27,3 +36,12 @@ class Order:
     user: User
     checkout_session_id: str | None = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    def to_safe(self) -> SafeOrder:
+        """### Returns a safe version of the order."""
+        return SafeOrder(
+            address=self.address,
+            status=self.status,
+            itens=self.itens,
+            id=self.id
+        )

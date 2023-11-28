@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 
@@ -18,3 +19,12 @@ class Address:
 
     def __str__(self):
         return f"{self.street}, {self.number} - {self.complement} - {self.neighborhood} - {self.city} - {self.state} - {self.country}"
+
+    def to_safe(self) -> Address:
+        """### Returns a safe version of the address."""
+        return self
+
+
+
+
+        

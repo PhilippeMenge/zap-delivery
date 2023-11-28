@@ -164,7 +164,7 @@ def create_order(
 
     return {
         "payment_url": checkout_session_url,
-        "order_info": order,
+        "order_info": order.to_safe(),
     }
 
 
@@ -219,8 +219,9 @@ def get_all_menu_items(
     )
 
     logger.info(f"Sucessfully got menu items for user {user.phone_number}")
-    logger.debug(f"Menu items: {menu_items}")
-    return {"menu_items": menu_items}
+    safe_menu_items = [item.to_safe() for item in menu_items]
+    logger.debug(f"Menu items: {safe_menu_items}")
+    return {"menu_items": safe_menu_items}
 
 
 @register_function("get_order_details")
@@ -247,8 +248,9 @@ def get_order_details(
         raise FunctionProcessingError("Pedido não encontrado.")
 
     logger.info(f"Sucessfully got order details for order {order_id}")
-    logger.debug(f"Order details: {order}")
-    return {"order_info": order}
+    safe_order = order.to_safe()
+    logger.debug(f"Order details: {safe_order}")
+    return {"order_info": safe_order}
 
 
 @register_function("get_establishment_contact_info")
@@ -322,4 +324,4 @@ def create_address(
     logger.info(
         f"Sucessfully created address for user {user.phone_number}: {address.id}"
     )
-    return {"address_info": address}
+    return {"address_info": address.to_safe()}
