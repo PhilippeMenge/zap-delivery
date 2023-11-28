@@ -18,6 +18,18 @@ class OrderService:
         self._stripeIntegrationService = stripeIntegrationService
         self._whatsappIntegrationService = whatsappIntegrationService
 
+    def get_orders_by_establishment_id(self, establishment_id: str) -> list[Order]:
+        """### Get all orders for an establishment.
+
+        Args:
+            establishment_id (str): The id of the establishment.
+
+        Returns:
+            list[Order]: The list of orders for the establishment.
+        """
+        logger.debug(f"Getting orders for establishment {establishment_id}")
+        return self._orderRepository.get_orders_by_establishment_id(establishment_id)
+
     def get_order(self, order_id: str) -> Order | None:
         """### Get an order from its id.
 

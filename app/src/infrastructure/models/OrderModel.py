@@ -18,6 +18,10 @@ class OrderItemModel(Base):
 
     amount: Mapped[int] = mapped_column(Integer)
     observation: Mapped[str] = mapped_column(String(255))
+    establishment_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("ESTABLISHMENTS.id"), primary_key=True
+    )
+    establishment = relationship("EstablishmentModel")
     order_id: Mapped[str] = mapped_column(
         String(255), ForeignKey("ORDERS.id"), primary_key=True
     )
@@ -29,6 +33,7 @@ class OrderItemModel(Base):
             amount=self.amount,
             observation=self.observation,
             order_id=self.order_id,
+            establishment=self.establishment.to_entity(),
         )
 
     @staticmethod
@@ -38,6 +43,7 @@ class OrderItemModel(Base):
             amount=order_item.amount,
             observation=order_item.observation,
             order_id=order_item.order_id,
+            establishment_id=order_item.establishment.id,
         )
 
 

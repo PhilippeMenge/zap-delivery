@@ -21,6 +21,24 @@ class OrderRepository:
             return None
         return order_model.to_entity()
 
+    def get_orders_by_establishment_id(self, establishment_id: str) -> list[Order]:
+        """### Get all orders for an establishment.
+
+        Args:
+            establishment_id (str): The id of the establishment.
+
+        Returns:
+            list[Order]: The list of orders for the establishment.
+        """
+        order_models = (
+            self.session.query(OrderModel)
+            .join(OrderModel.user)
+            .filter_by(establishment_id=establishment_id)
+            .all()
+        )
+
+        return [order_model.to_entity() for order_model in order_models]
+
     def add_order(self, order: Order):
         """### Add an order.
 

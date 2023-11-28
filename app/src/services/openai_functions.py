@@ -140,7 +140,7 @@ def create_order(
             raise FunctionProcessingError(f"Item {item['item_id']} não encontrado.")
 
         order_items.append(
-            OrderItem(menu_item=menu_item, amount=amount, observation=observation)
+            OrderItem(menu_item=menu_item, amount=amount, observation=observation, establishment=user.establishment)
         )
 
     address = openAiIntegrationService._addressRepository.get_address(address_id)
