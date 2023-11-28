@@ -7,6 +7,26 @@ class EstablishmentRepository:
     def __init__(self, session: Session):
         self.session = session
 
+    def get_establishment(self, establishment_id: str) -> Establishment | None:
+        """### Get an establishment from an ID
+
+        Args:
+            establishment_id (str): The ID of the establishment
+
+        Returns:
+            Establishment: The establishment instance. None if not found.
+        """
+        establishment_model = (
+            self.session.query(EstablishmentModel)
+            .filter_by(id=establishment_id)
+            .first()
+        )
+
+        if establishment_model is None:
+            return None
+
+        return establishment_model.to_entity()
+
     def get_establishment_from_whatsapp_phone_number_id(
         self, whatsapp_number_id: int
     ) -> Establishment | None:

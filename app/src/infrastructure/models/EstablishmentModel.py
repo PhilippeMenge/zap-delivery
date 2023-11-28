@@ -20,6 +20,7 @@ class EstablishmentModel(Base):
     address = relationship("AddressModel")
     user = relationship("UserModel", back_populates="establishment")
     menu_items = relationship("MenuItemModel", back_populates="establishment")
+    operators = relationship("OperatorModel", back_populates="establishment")
 
     def to_entity(self):
         return Establishment(

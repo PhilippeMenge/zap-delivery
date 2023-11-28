@@ -4,6 +4,7 @@ from src.domain.Establishment import Establishment
 from src.domain.MenuItem import MenuItem
 from src.infrastructure.init_db import get_db
 from src.infrastructure.repositories.address_repository import AddressRepository
+from src.infrastructure.repositories.operator_repository import OperatorRepository
 from src.infrastructure.repositories.establishment_repository import (
     EstablishmentRepository,
 )
@@ -15,12 +16,17 @@ from src.services.openai_integration_service import OpenAiIntegrationService
 from src.services.order_service import OrderService
 from src.services.stripe_integration_service import StripeIntegrationService
 from src.services.whatsapp_integration_service import WhatsappIntegrationService
+from src.services.operator_service import OperatorService
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 MENU_ITEMS_REPOSITORY = MenuItemRepository(session=get_db())
 ORDER_REPOSITORY = OrderRepository(session=get_db())
 USER_REPOSITORY = UserRepository(session=get_db())
 ADDRESS_REPOSITORY = AddressRepository(session=get_db())
 ESTABLISHMENT_REPOSITORY = EstablishmentRepository(session=get_db())
+OPERATOR_REPOSITORY = OperatorRepository(session=get_db())
 
 WHATSAPP_INTEGRATION_SERVICE = WhatsappIntegrationService()
 STRIPE_INTEGRATION_SERVICE = StripeIntegrationService()
@@ -37,6 +43,7 @@ OPENAI_INTEGRATION_SERVICE = OpenAiIntegrationService(
     googleMapsIntegrationService=GOOGLE_MAPS_INTEGRATION_SERVICE,
     addressRepository=ADDRESS_REPOSITORY,
 )
+OPERATOR_SERVICE = OperatorService(operatorRepository=OPERATOR_REPOSITORY, establishmentRepository=ESTABLISHMENT_REPOSITORY)
 
 
 def populate_db(
@@ -69,7 +76,7 @@ Mantenha um tom profissional.
 Use as formatações de texto do WhatsApp (*bold*, _italic_) para enfatizar informações importantes.
 Links e Funções:
 
-Sempre forneça links completos (ex: https://link.com). Nunca corte o link pela metade. Nao utilize sintaxe markdown para exibir links.
+Sempre forneça links completos (ex: https://link.com).
 Utilize as funções disponíveis conforme necessário para otimizar o atendimento.
 
 """

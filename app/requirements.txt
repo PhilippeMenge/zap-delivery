@@ -10,3 +10,5 @@ fastapi
 uvicorn
 stripe
 googlemaps
+bcrypt
+pyjwt
