@@ -71,4 +71,4 @@ def get_operator_me(request: Request, current_user: Operator = Depends(OPERATOR_
     """### Get the current operator."""
     logger.debug("Received request to get current operator.")
 
-    return {"operator": current_user.email}
+    return {"operator": current_user.to_safe()}
