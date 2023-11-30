@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Path
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.requests import Request
+from fastapi.responses import Response
+from pydantic import BaseModel
 from src.domain.Operator import Operator
 from src.domain.Order import OrderStatus
-from fastapi.responses import Response
-from src.utils.auth import hash_password, validate_password, generate_token
-from src.utils.logging import get_configured_logger
-from pydantic import BaseModel
 from src.routers.common import OPERATOR_SERVICE
+from src.utils.auth import generate_token, hash_password
+from src.utils.logging import get_configured_logger
 
 logger = get_configured_logger(__name__)
 
@@ -34,10 +35,7 @@ def create_operator(create_operator_schema: CreateOperatorSchema):
     hashed_password = hash_password(password)
 
     operator = Operator(
-        email=email,
-        name=name,
-        hashed_password=hashed_password,
-        is_active=True
+        email=email, name=name, hashed_password=hashed_password, is_active=True
     )
 
     OPERATOR_SERVICE.create_operator(operator, establishment_id)
@@ -49,6 +47,7 @@ class LoginOperatorSchema(BaseModel):
     email: str
     password: str
 
+
 @router.post("/login")
 def login_operator(login_operator_schema: LoginOperatorSchema):
     """### Updates the status of an order."""
@@ -57,17 +56,19 @@ def login_operator(login_operator_schema: LoginOperatorSchema):
     email = login_operator_schema.email
     password = login_operator_schema.password
 
-    operator = OPERATOR_SERVICE.get_operator_from_email(email)
+    operator = OPERATOR_SERVICE.authenticate_user(email, password)
 
     if operator is None:
-        return Response(status_code=401)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not operator.is_active:
-        return Response(status_code=401)
+    access_token = generate_token({"sub": operator.email})
 
-    if not validate_password(password, operator.hashed_password):
-        return Response(status_code=401)
-    
-    token = generate_token(email)
+    return {"access_token": access_token, "token_type": "bearer"}
 
-    return {"token": token}
+
+@router.get("/me")
+def get_operator_me(request: Request, current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
+    """### Get the current operator."""
+    logger.debug("Received request to get current operator.")
+
+    return {"operator": current_user.email}

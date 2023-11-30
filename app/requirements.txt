@@ -12,3 +12,5 @@ stripe
 googlemaps
 bcrypt
 pyjwt
+python-jose[cryptography]
+passlib[bcrypt]
