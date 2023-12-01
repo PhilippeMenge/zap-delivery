@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
-from src.domain.Establishment import Establishment
 import uuid
+from dataclasses import dataclass, field
+
+from src.domain.Establishment import Establishment, SafeEstablishment
+
 
 @dataclass
 class SafeOperator:
@@ -8,12 +10,14 @@ class SafeOperator:
 
     id: str
     name: str
-    establishment: Establishment
+    establishment: SafeEstablishment
     is_active: bool
+
 
 @dataclass
 class Operator:
     """### Represents an operator."""
+
     email: str
     name: str
     hashed_password: str
@@ -27,5 +31,5 @@ class Operator:
             id=self.id,
             name=self.name,
             establishment=self.establishment.to_safe(),
-            is_active=self.is_active
+            is_active=self.is_active,
         )

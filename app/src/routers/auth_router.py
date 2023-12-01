@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path
@@ -24,7 +25,7 @@ class CreateOperatorSchema(BaseModel):
 
 @router.post("/signup")
 def create_operator(create_operator_schema: CreateOperatorSchema):
-    """### Updates the status of an order."""
+    """### Create operator."""
     logger.debug("Received request to create operator.")
 
     email = create_operator_schema.email
@@ -50,7 +51,7 @@ class LoginOperatorSchema(BaseModel):
 
 @router.post("/login")
 def login_operator(login_operator_schema: LoginOperatorSchema):
-    """### Updates the status of an order."""
+    """### Login operator."""
     logger.debug("Received request to login operator.")
 
     email = login_operator_schema.email
@@ -61,13 +62,23 @@ def login_operator(login_operator_schema: LoginOperatorSchema):
     if operator is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    access_token = generate_token({"sub": operator.email})
+    access_token = generate_token({"sub": operator.email}, expires_delta=timedelta(hours=36))
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/refresh")
+def refresh_token(current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
+    """### Refresh token."""
+    logger.debug("Received request to refresh token.")
+
+    access_token = generate_token({"sub": current_user.email}, expires_delta=timedelta(hours=36))
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/me")
-def get_operator_me(request: Request, current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
+def get_operator_me(current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
     """### Get the current operator."""
     logger.debug("Received request to get current operator.")
 

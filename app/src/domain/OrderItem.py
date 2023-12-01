@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 
-from src.domain.MenuItem import MenuItem
 from src.domain.Establishment import Establishment
-
+from src.domain.MenuItem import MenuItem, SafeMenuItem
 
 
 @dataclass
 class SafeOrderItem:
     """### Represents an item in an order."""
 
-    menu_item: MenuItem
+    menu_item: SafeMenuItem
     amount: int
     observation: str
     order_id: str | None = None
+
 
 @dataclass
 class OrderItem:
@@ -30,5 +30,5 @@ class OrderItem:
             menu_item=self.menu_item.to_safe(),
             amount=self.amount,
             observation=self.observation,
-            order_id=self.order_id
+            order_id=self.order_id,
         )

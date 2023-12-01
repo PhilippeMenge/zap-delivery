@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.domain.Establishment import Establishment
+from src.domain.Establishment import Establishment, SafeEstablishment
 
 
 
@@ -9,7 +9,7 @@ class SafeUser:
 
     phone_number: str
     thread_id: str
-    establishment: Establishment
+    establishment: SafeEstablishment
 @dataclass
 class User:
     """### Represents the relationship between a user and an openai thread."""

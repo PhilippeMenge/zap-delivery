@@ -23,7 +23,12 @@ def get_orders(operator: Operator = Depends(OPERATOR_SERVICE.get_current_operato
     if establishment is None:
         raise HTTPException(status_code=400, detail="Operator has no establishment.")
 
-    return ORDER_SERVICE.get_orders_by_establishment_id(establishment.id)
+    safe_orders = [
+        order.to_safe()
+        for order in ORDER_SERVICE.get_orders_by_establishment_id(establishment.id)
+    ]
+
+    return safe_orders
 
 
 class OrderStatusUpdate(BaseModel):
