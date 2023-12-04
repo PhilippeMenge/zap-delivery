@@ -25,3 +25,5 @@ class User:
             thread_id=self.thread_id,
             establishment=self.establishment.to_safe()
         )
+
+

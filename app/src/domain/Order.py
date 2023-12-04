@@ -4,7 +4,7 @@ from enum import Enum
 
 from src.domain.Address import Address
 from src.domain.OrderItem import OrderItem, SafeOrderItem
-from src.domain.User import User
+from src.domain.User import SafeUser, User
 
 
 class OrderStatus(Enum):
@@ -23,6 +23,7 @@ class SafeOrder:
     address: Address
     status: OrderStatus
     itens: list[SafeOrderItem]
+    user: SafeUser
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -44,4 +45,5 @@ class Order:
             status=self.status,
             itens=[item.to_safe() for item in self.itens],
             id=self.id,
+            user=self.user.to_safe(),
         )
