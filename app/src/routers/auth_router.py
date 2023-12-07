@@ -62,23 +62,57 @@ def login_operator(login_operator_schema: LoginOperatorSchema):
     if operator is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    access_token = generate_token({"sub": operator.email}, expires_delta=timedelta(hours=36))
+    access_token = generate_token(
+        {"sub": operator.email}, expires_delta=timedelta(hours=36)
+    )
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/refresh")
-def refresh_token(current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
+def refresh_token(
+    current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator),
+):
     """### Refresh token."""
     logger.debug("Received request to refresh token.")
 
-    access_token = generate_token({"sub": current_user.email}, expires_delta=timedelta(hours=36))
+    access_token = generate_token(
+        {"sub": current_user.email}, expires_delta=timedelta(hours=36)
+    )
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+class UpdateOperator(BaseModel):
+    name: str | None = None
+    password: str | None = None
+
+
+@router.put("/me/update-operator")
+def update_operator(
+    update_operator: UpdateOperator,
+    operator: Operator = Depends(OPERATOR_SERVICE.get_current_operator),
+):
+    """### Updates the operator."""
+    logger.debug("Received request to update operator.")
+
+    operator.name = (
+        update_operator.name if update_operator.name is not None else operator.name
+    )
+    operator.hashed_password = (
+        hash_password(update_operator.password)
+        if update_operator.password is not None
+        else operator.hashed_password
+    )
+
+    OPERATOR_SERVICE.update_operator(operator)
+    return Response(status_code=200)
+
+
 @router.get("/me")
-def get_operator_me(current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator)):
+def get_operator_me(
+    current_user: Operator = Depends(OPERATOR_SERVICE.get_current_operator),
+):
     """### Get the current operator."""
     logger.debug("Received request to get current operator.")
 

@@ -1,23 +1,24 @@
+from fastapi.security import OAuth2PasswordBearer
 from src.config import WHATSAPP_API_KEY, WHATSAPP_NUMBER_ID
 from src.domain.Address import Address
 from src.domain.Establishment import Establishment
 from src.domain.MenuItem import MenuItem
 from src.infrastructure.init_db import get_db
 from src.infrastructure.repositories.address_repository import AddressRepository
-from src.infrastructure.repositories.operator_repository import OperatorRepository
 from src.infrastructure.repositories.establishment_repository import (
     EstablishmentRepository,
 )
 from src.infrastructure.repositories.menu_items_repository import MenuItemRepository
+from src.infrastructure.repositories.operator_repository import OperatorRepository
 from src.infrastructure.repositories.order_repository import OrderRepository
 from src.infrastructure.repositories.user_repository import UserRepository
 from src.services.google_maps_integration_service import GoogleMapsIntegrationService
+from src.services.menu_items_service import MenuItemService
 from src.services.openai_integration_service import OpenAiIntegrationService
+from src.services.operator_service import OperatorService
 from src.services.order_service import OrderService
 from src.services.stripe_integration_service import StripeIntegrationService
 from src.services.whatsapp_integration_service import WhatsappIntegrationService
-from src.services.operator_service import OperatorService
-from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -30,6 +31,7 @@ OPERATOR_REPOSITORY = OperatorRepository(session=get_db())
 
 WHATSAPP_INTEGRATION_SERVICE = WhatsappIntegrationService()
 STRIPE_INTEGRATION_SERVICE = StripeIntegrationService()
+MENU_ITEMS_SERVICE = MenuItemService(menuItemRepository=MENU_ITEMS_REPOSITORY)
 GOOGLE_MAPS_INTEGRATION_SERVICE = GoogleMapsIntegrationService()
 ORDER_SERVICE = OrderService(
     orderRepository=ORDER_REPOSITORY,
@@ -43,7 +45,10 @@ OPENAI_INTEGRATION_SERVICE = OpenAiIntegrationService(
     googleMapsIntegrationService=GOOGLE_MAPS_INTEGRATION_SERVICE,
     addressRepository=ADDRESS_REPOSITORY,
 )
-OPERATOR_SERVICE = OperatorService(operatorRepository=OPERATOR_REPOSITORY, establishmentRepository=ESTABLISHMENT_REPOSITORY)
+OPERATOR_SERVICE = OperatorService(
+    operatorRepository=OPERATOR_REPOSITORY,
+    establishmentRepository=ESTABLISHMENT_REPOSITORY,
+)
 
 
 def populate_db(

@@ -10,6 +10,7 @@ class SafeOperator:
 
     id: str
     name: str
+    email: str
     establishment: SafeEstablishment
     is_active: bool
 
@@ -30,6 +31,7 @@ class Operator:
         return SafeOperator(
             id=self.id,
             name=self.name,
+            email=self.email,
             establishment=self.establishment.to_safe(),
             is_active=self.is_active,
         )

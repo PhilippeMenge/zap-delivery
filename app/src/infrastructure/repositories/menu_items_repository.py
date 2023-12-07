@@ -64,3 +64,21 @@ class MenuItemRepository:
         """
         self.session.query(MenuItemModel).delete()
         self.session.commit()
+
+    def update_menu_item(self, menu_item: MenuItem):
+        """### Update a menu item.
+
+        Args:
+            menu_item (MenuItem): The menu item to update.
+        """
+        self.session.query(MenuItemModel).filter_by(
+            id=menu_item.id, establishment_id=menu_item.establishment.id
+        ).update(
+            {
+                MenuItemModel.name: menu_item.name,
+                MenuItemModel.price: menu_item.price,
+                MenuItemModel.description: menu_item.description,
+                MenuItemModel.is_active: menu_item.is_active,
+            }
+        )
+        self.session.commit()
